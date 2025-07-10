@@ -98,7 +98,8 @@
             select.disabled = true;
             spinner.style.display = 'block';
             if (!ano || !tipoProva) return;
-            const url = `https://www.isep.ipp.pt/ISEP/GetCursos?TipoProva=${tipoProva}&Ano=${ano}`;
+            const proxy = 'https://corsproxy.io/?';
+            const url = proxy + `https://www.isep.ipp.pt/ISEP/GetCursos?TipoProva=${tipoProva}&Ano=${ano}`;
             try {
                 const res = await fetch(url);
                 const cursos = await res.json();
@@ -135,7 +136,8 @@
         async function fetchProvas(tipoProva, curso, ano) {
             const spinner = document.getElementById('loadingSpinner');
             spinner.style.display = 'block';
-            const url = `https://www.isep.ipp.pt/ISEP/GetProvas?TipoProva=${tipoProva}&Curso=${curso}&Ano=${ano}`;
+            const proxy = 'https://corsproxy.io/?';
+            const url = proxy + `https://www.isep.ipp.pt/ISEP/GetProvas?TipoProva=${tipoProva}&Curso=${curso}&Ano=${ano}`;
             try {
                 const res = await fetch(url);
                 const provas = await res.json();
