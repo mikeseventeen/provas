@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provas ISEP</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootswatch Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.0/dist/lumen/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Table CSS -->
+    <link href="https://unpkg.com/bootstrap-table@1.21.2/dist/bootstrap-table.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        html, body { height: 100%; }
+        body { display: flex; flex-direction: column; margin: 0; }
+        footer { flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <div class="container" style="flex: 1;">
+        <div class="d-flex align-items-center my-4">
+            <img src="favicon.ico" alt="ISEP" style="width: 50px; margin-right: 10px;">
+            <h1 class="mb-0">Provas ISEP</h1>
+        </div>
+        <hr class="mt-4 mb-2">
+        <form class="row g-3 mb-4" id="provasForm">
+            <div class="col-md-3">
+                <label for="tipoProvaSelect" class="form-label">Tipo de Prova</label>
+                <select class="form-select" id="tipoProvaSelect" required>
+                    <option value="LICENCIATURA" selected>Licenciatura</option>
+                    <option value="MESTRADO">Mestrado</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="anoInput" class="form-label">Ano</label>
+                <input type="number" class="form-control" id="anoInput" value="2025" min="2020" max="2100" required>
+            </div>
+            <div class="col-md-6">
+                <label for="cursoSelect" class="form-label">Curso</label>
+                <select class="form-select" id="cursoSelect" required disabled>
+                    <option value="">Selecione o ano e tipo de prova primeiro...</option>
+                </select>
+            </div>
+        </form>
+        <div id="loadingSpinner" class="text-center my-4" style="display:none;">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">A carregar...</span>
+            </div>
+        </div>
+        <div id="provasTableContainer">
+            <table id="provasTable" 
+                   class="table table-striped"
+                   data-toggle="table"
+                   data-pagination="true"
+                   data-pagination-v-align="both"
+                   data-page-size="All"
+                   data-page-list="[10, 25, 50, 100, All]"
+                   data-sortable="true">
+                <thead>
+                    <tr>
+                        <th data-field="TeseName" data-sortable="true">Título</th>
+                        <th data-field="TeseDateDisplay" data-sortable="true" data-sorter="dateSorter">Data</th>
+                        <th data-field="TeseHourBegin" data-sortable="true">Hora Início</th>
+                        <th data-field="TeseHourEnd" data-sortable="true">Hora Fim</th>
+                        <th data-field="NameRequester" data-sortable="true">Estudante</th>
+                        <th data-field="Presidente" data-sortable="true">Presidente</th>
+                        <th data-field="Arguente" data-sortable="true">Arguente</th>
+                        <th data-field="Orientador" data-sortable="true">Orientador</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <footer>
+        <div class="container d-flex flex-wrap justify-content-between align-items-center py-3 border-top">
+            <p class="col-md-4 mb-0 text-body-secondary">© 2025 Desenvolvido pelo Boda.</p>
+            <div class="justify-content-end">
+                <p class="text-muted">Última atualização: 10-07-2025</p>
+            </div>
+        </div>
+    </footer>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap Table JS -->
+    <script src="https://unpkg.com/bootstrap-table@1.21.2/dist/bootstrap-table.min.js"></script>
+    <script>
+        // Fetch courses and populate select
+        async function fetchCursos(tipoProva, ano) {
+            const select = document.getElementById('cursoSelect');
+            const spinner = document.getElementById('loadingSpinner');
+            select.innerHTML = '<option value="">A carregar cursos...</option>';
+            select.disabled = true;
+            spinner.style.display = 'block';
+            if (!ano || !tipoProva) return;
+            const url = `https://www.isep.ipp.pt/ISEP/GetCursos?TipoProva=${tipoProva}&Ano=${ano}`;
+            try {
+                const res = await fetch(url);
+                const cursos = await res.json();
+                select.innerHTML = '<option value="">Selecione o curso...</option>';
+                cursos.forEach(curso => {
+                    const opt = document.createElement('option');
+                    opt.value = curso.Value;
+                    opt.textContent = curso.Text;
+                    select.appendChild(opt);
+                });
+                select.disabled = false;
+            } catch (e) {
+                select.innerHTML = '<option value="">Erro ao carregar cursos</option>';
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+        // Format date from /Date(1753225200000)/ and return both display and raw timestamp
+        function parseTeseDate(dateStr) {
+            if (!dateStr) return { display: '', raw: 0 };
+            const match = /\d+/.exec(dateStr);
+            if (!match) return { display: '', raw: 0 };
+            const date = new Date(parseInt(match[0]));
+            return {
+                display: date.toLocaleDateString('pt-PT'),
+                raw: date.getTime()
+            };
+        }
+        // Custom date sorter for bootstrap-table
+        function dateSorter(a, b, rowA, rowB) {
+            return rowA.TeseDateRaw - rowB.TeseDateRaw;
+        }
+        // Fetch provas for selected course and year
+        async function fetchProvas(tipoProva, curso, ano) {
+            const spinner = document.getElementById('loadingSpinner');
+            spinner.style.display = 'block';
+            const url = `https://www.isep.ipp.pt/ISEP/GetProvas?TipoProva=${tipoProva}&Curso=${curso}&Ano=${ano}`;
+            try {
+                const res = await fetch(url);
+                const provas = await res.json();
+                return provas;
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+        // Display provas in table
+        function displayProvas(provas) {
+            const formatted = provas.map(p => {
+                const parsedDate = parseTeseDate(p.TeseDate);
+                const juri = Array.isArray(p.Juri) ? p.Juri : [ '', '', '' ];
+                return {
+                    TeseName: p.TeseName,
+                    TeseDateDisplay: parsedDate.display,
+                    TeseDateRaw: parsedDate.raw,
+                    TeseHourBegin: p.TeseHourBegin,
+                    TeseHourEnd: p.TeseHourEnd,
+                    NameRequester: p.NameRequester,
+                    Presidente: juri[0] || '',
+                    Arguente: juri[1] || '',
+                    Orientador: juri[2] || ''
+                };
+            });
+            $('#provasTable').bootstrapTable('destroy').bootstrapTable({
+                data: formatted,
+                columns: [
+                    { field: 'TeseName', title: 'Título', sortable: true },
+                    { field: 'TeseDateDisplay', title: 'Data', sortable: true, sorter: dateSorter },
+                    { field: 'TeseHourBegin', title: 'Hora Início', sortable: true },
+                    { field: 'TeseHourEnd', title: 'Hora Fim', sortable: true },
+                    { field: 'NameRequester', title: 'Estudante', sortable: true },
+                    { field: 'Presidente', title: 'Presidente', sortable: true },
+                    { field: 'Arguente', title: 'Arguente', sortable: true },
+                    { field: 'Orientador', title: 'Orientador', sortable: true }
+                ],
+                sortName: 'TeseDateDisplay',
+                sortOrder: 'desc'
+            });
+        }
+        // On page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const tipoProvaSelect = document.getElementById('tipoProvaSelect');
+            const anoInput = document.getElementById('anoInput');
+            const cursoSelect = document.getElementById('cursoSelect');
+            function refreshCursos() {
+                // Clear table and disable course select while loading
+                $('#provasTable').bootstrapTable('removeAll');
+                cursoSelect.disabled = true;
+                fetchCursos(tipoProvaSelect.value, anoInput.value);
+            }
+            tipoProvaSelect.addEventListener('change', refreshCursos);
+            anoInput.addEventListener('change', refreshCursos);
+            cursoSelect.addEventListener('change', async () => {
+                const tipoProva = tipoProvaSelect.value;
+                const curso = cursoSelect.value;
+                const ano = anoInput.value;
+                if (!curso || !ano || !tipoProva) {
+                    $('#provasTable').bootstrapTable('removeAll');
+                    return;
+                }
+                const provas = await fetchProvas(tipoProva, curso, ano);
+                displayProvas(provas);
+            });
+            // Initial load
+            fetchCursos(tipoProvaSelect.value, anoInput.value);
+        });
+    </script>
+</body>
+</html> 
